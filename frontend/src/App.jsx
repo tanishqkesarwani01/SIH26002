@@ -7,6 +7,7 @@ import { ShipmentTracker } from "./components/ShipmentTracker";
 import { FieldReporter } from "./components/FieldReporter";
 import { MultilingualAlerts } from "./components/MultilingualAlerts";
 import { RiskExplainabilityModal } from "./components/RiskExplainabilityModal";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import {
   Compass,
   Layers,
@@ -128,8 +129,10 @@ const MainContent = () => {
 
 export default function App() {
   return (
-    <LogisticsProvider>
-      <MainContent />
-    </LogisticsProvider>
+    <ErrorBoundary>
+      <LogisticsProvider>
+        <MainContent />
+      </LogisticsProvider>
+    </ErrorBoundary>
   );
 }

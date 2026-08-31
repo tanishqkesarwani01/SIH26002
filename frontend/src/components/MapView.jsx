@@ -141,7 +141,7 @@ export const MapView = () => {
   } = useLogistics();
 
   const [basemapStyle, setBasemapStyle] = useState(
-    () => localStorage.getItem("ner_basemap_style") || "osm_dark"
+    () => localStorage.getItem("ner_basemap_style") || "esri_dark"
   );
   const [mapboxToken, setMapboxToken] = useState(
     () => localStorage.getItem("ner_mapbox_token") || ""
@@ -454,7 +454,7 @@ export const MapView = () => {
           />
         )}
 
-        {basemapStyle === "esri_dark" && (
+        {(!["osm_standard", "satellite", "mapbox", "carto"].includes(basemapStyle) || basemapStyle === "esri_dark") && (
           <TileLayer
             attribution='&copy; <a href="https://www.esri.com/">Esri</a> & USGS | Northeast Logistics Resilience Grid'
             url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
