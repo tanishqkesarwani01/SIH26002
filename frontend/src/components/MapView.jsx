@@ -140,6 +140,10 @@ export const MapView = () => {
     setActiveTab,
   } = useLogistics();
 
+  const [mapCenter, setMapCenter] = useState([25.85, 92.5]);
+  const [mapZoom, setMapZoom] = useState(7);
+  const [selectedIncident, setSelectedIncident] = useState(null);
+
   const [basemapStyle, setBasemapStyle] = useState(
     () => localStorage.getItem("ner_basemap_style") || "esri_dark"
   );
