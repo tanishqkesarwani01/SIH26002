@@ -224,7 +224,7 @@ export const MapView = () => {
   };
 
   return (
-    <div className="relative w-full h-[680px] lg:h-[760px] rounded-2xl overflow-hidden border border-slate-800 bg-[#070a13] shadow-2xl">
+    <div className="relative w-full h-[680px] lg:h-[720px] rounded-2xl overflow-hidden border border-slate-800 bg-[#070a13] shadow-2xl">
       {/* Map Header & Layer Controller Overlay */}
       <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-wrap items-center justify-between gap-2 pointer-events-none">
         {/* Left: Quick Region Filters */}

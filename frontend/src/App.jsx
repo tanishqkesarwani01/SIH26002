@@ -7,6 +7,7 @@ import { ShipmentTracker } from "./components/ShipmentTracker";
 import { FieldReporter } from "./components/FieldReporter";
 import { MultilingualAlerts } from "./components/MultilingualAlerts";
 import { RiskExplainabilityModal } from "./components/RiskExplainabilityModal";
+import { QuickSimulatorPanel } from "./components/QuickSimulatorPanel";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import {
   Compass,
@@ -34,31 +35,13 @@ const MainContent = () => {
         {activeTab === "dashboard" && (
           <div className="space-y-6">
             {/* Top Grid: GIS Map (8 cols) + Disruption Simulator Quick Controls (4 cols) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
               <div className="lg:col-span-8">
                 <MapView />
               </div>
 
-              <div className="lg:col-span-4 space-y-4">
-                <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-5 shadow-xl">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-                    <div className="flex items-center gap-2">
-                      <Zap className="w-4 h-4 text-amber-400" />
-                      <h3 className="font-bold text-slate-100 text-sm">
-                        1-Click Disruption Triggers
-                      </h3>
-                    </div>
-                    <button
-                      onClick={() => setActiveTab("simulator")}
-                      className="text-amber-400 hover:text-amber-300 text-[11px] font-semibold flex items-center gap-1"
-                    >
-                      <span>Full Studio</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-
-                  <DisruptionSimulator />
-                </div>
+              <div className="lg:col-span-4">
+                <QuickSimulatorPanel />
               </div>
             </div>
 
