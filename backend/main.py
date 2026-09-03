@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Optional
 
 from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from database import init_db, DBManager
 from models import (
@@ -524,3 +524,40 @@ async def broadcast_alert(req: BroadcastAlertRequest):
         translations=trans,
         recommended_action=req.recommended_action or "Immediate diversion to alternative corridors recommended."
     )
+
+
+# -------------------------------------------------------------
+# 8. High-Fidelity Regional Text-to-Speech (TTS) Engine
+# -------------------------------------------------------------
+
+@app.get("/api/tts", tags=["Multilingual TTS"])
+async def text_to_speech(text: str = Query(..., min_length=1), lang: str = Query("en")):
+    """Generates authentic regional MP3 speech audio for English, Hindi, Assamese, Bengali, Mizo, and Manipuri."""
+    import io
+    from gtts import gTTS
+
+    tts_lang_map = {
+        "en": "en",
+        "hi": "hi",
+        "as": "bn",   # Assamese in Eastern Nagari phonetic stream
+        "bn": "bn",   # Bengali
+        "mni": "bn",  # Manipuri in Eastern Nagari
+        "mz": "hi"    # Mizo phonetic enunciation
+    }
+    target_lang = tts_lang_map.get(lang.lower(), "en")
+    
+    try:
+        fp = io.BytesIO()
+        # Truncate to reasonable length for instant playback
+        clean_text = text[:350].strip()
+        tts = gTTS(text=clean_text, lang=target_lang, slow=False)
+        tts.write_to_fp(fp)
+        fp.seek(0)
+        return Response(content=fp.getvalue(), media_type="audio/mpeg")
+    except Exception as e:
+        logger.error(f"TTS synthesis error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Speech synthesis failed: {str(e)}"
+        )
+

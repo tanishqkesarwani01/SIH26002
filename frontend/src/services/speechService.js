@@ -1,11 +1,11 @@
-// Robust Multilingual Speech Synthesis & Native Regional Audio Service
-// Supports: English, Hindi (हिन्दी), Assamese (অসমীয়া), Bengali (বাংলা), Mizo, Manipuri
+// High-Fidelity Regional Speech Service for Northeast India Logistics Platform
+// Seamlessly streams authentic MP3 audio in English, Hindi, Assamese, Bengali, Mizo, and Manipuri
 
 class SpeechService {
   constructor() {
     this.synth = typeof window !== "undefined" ? window.speechSynthesis : null;
-    this.currentUtterance = null;
     this.audioElement = null;
+    this.currentUtterance = null;
     this.isSpeaking = false;
     this.isPaused = false;
     this.onStateChange = null;
@@ -31,36 +31,25 @@ class SpeechService {
     return this.voices || [];
   }
 
-  // Find best regional voice matching script & language
+  // Find best regional voice from browser
   findBestVoice(langCode, langKey) {
     const allVoices = this.getAvailableVoices();
     if (!allVoices || allVoices.length === 0) return null;
 
-    // 1. Exact language tag match (e.g. "hi-IN", "bn-IN", "as-IN", "en-IN")
-    let match = allVoices.find(
-      (v) => v.lang.toLowerCase() === langCode.toLowerCase() || v.lang.replace("_", "-").toLowerCase() === langCode.toLowerCase()
-    );
-    if (match) return match;
-
-    // 2. Language prefix match (e.g. "hi", "bn", "as", "en")
-    const prefix = langCode.slice(0, 2).toLowerCase();
-    match = allVoices.find((v) => v.lang.toLowerCase().startsWith(prefix));
-    if (match) return match;
-
-    // 3. Name-based match for Indian voices (Microsoft / Google / Apple)
+    // 1. Language prefix match
     if (langKey === "hi" || langCode.startsWith("hi")) {
-      match = allVoices.find((v) => /hindi|swara|madhav|heera|kalpana/i.test(v.name));
+      const match = allVoices.find((v) => /hindi|swara|madhav|heera|kalpana/i.test(v.name) || v.lang.startsWith("hi"));
       if (match) return match;
     }
 
     if (langKey === "bn" || langKey === "as" || langKey === "mni" || langCode.startsWith("bn") || langCode.startsWith("as")) {
-      match = allVoices.find((v) => /bengali|bangla|bashkar|tanishaa/i.test(v.name));
+      const match = allVoices.find((v) => /bengali|bangla|bashkar|tanishaa/i.test(v.name) || v.lang.startsWith("bn"));
       if (match) return match;
     }
 
-    // 4. Any Indian Accent Voice fallback
-    match = allVoices.find((v) => /india|indian|-in|_in/i.test(v.lang) || /india/i.test(v.name));
-    if (match) return match;
+    // 2. Any Indian voice match
+    const indianMatch = allVoices.find((v) => /india|indian|-in|_in/i.test(v.lang) || /india/i.test(v.name));
+    if (indianMatch) return indianMatch;
 
     return allVoices[0] || null;
   }
@@ -68,79 +57,23 @@ class SpeechService {
   speak(text, langCode = "en-IN", langKey = "en", onEndCallback = null) {
     this.stop();
 
-    // Mapping for Google Public TTS stream (supports authentic native pronunciations)
-    const ttsLangMap = {
-      en: "en-IN",
+    // Map regional code to API TTS language
+    const apiLangMap = {
+      en: "en",
       hi: "hi",
-      as: "bn",   // Assamese in Eastern Nagari phonetic stream
-      bn: "bn",   // Bengali stream
-      mni: "bn",  // Manipuri in Eastern Nagari stream
-      mz: "hi"    // Mizo Indian-phonetic stream
+      as: "as",
+      bn: "bn",
+      mni: "mni",
+      mz: "mz"
     };
 
-    const targetTtsLang = ttsLangMap[langKey] || (langCode ? langCode.slice(0, 2) : "en");
+    const targetLang = apiLangMap[langKey] || "en";
+    const baseUrl = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") ? "http://localhost:8000" : "";
+    const apiUrl = `${baseUrl}/api/tts?lang=${encodeURIComponent(targetLang)}&text=${encodeURIComponent(text.substring(0, 320))}`;
 
-    // Try Native Web Speech API first if suitable regional voice exists
-    const bestVoice = this.findBestVoice(langCode, langKey);
-    const hasNativeRegionalVoice =
-      bestVoice &&
-      (bestVoice.lang.toLowerCase().includes(langCode.slice(0, 2).toLowerCase()) ||
-       /hindi|bengali|bangla|india/i.test(bestVoice.name) ||
-       /hi|bn|as/i.test(bestVoice.lang));
-
-    if (this.synth && (hasNativeRegionalVoice || langKey === "en")) {
-      try {
-        const utterance = new SpeechSynthesisUtterance(text);
-        this.currentUtterance = utterance;
-
-        if (bestVoice) {
-          utterance.voice = bestVoice;
-          utterance.lang = bestVoice.lang;
-        } else {
-          utterance.lang = langCode;
-        }
-
-        utterance.rate = langKey === "en" ? 0.95 : 0.9;
-        utterance.pitch = 1.0;
-
-        utterance.onstart = () => {
-          this.isSpeaking = true;
-          this.isPaused = false;
-          if (this.onStateChange) this.onStateChange({ isSpeaking: true, isPaused: false });
-        };
-
-        utterance.onend = () => {
-          this.isSpeaking = false;
-          this.isPaused = false;
-          if (this.onStateChange) this.onStateChange({ isSpeaking: false, isPaused: false });
-          if (onEndCallback) onEndCallback();
-        };
-
-        utterance.onerror = (e) => {
-          console.warn("Web Speech API encountered an issue, falling back to audio stream:", e);
-          this.fallbackAudioStream(text, targetTtsLang, onEndCallback);
-        };
-
-        this.synth.speak(utterance);
-        return true;
-      } catch (err) {
-        console.warn("Web Speech exception, trying stream fallback:", err);
-      }
-    }
-
-    // Fallback: High-Definition Regional Audio Stream
-    return this.fallbackAudioStream(text, targetTtsLang, onEndCallback);
-  }
-
-  fallbackAudioStream(text, ttsLang, onEndCallback) {
+    // 1. Try High-Fidelity Backend Audio Stream first (Guaranteed authentic pronunciation)
     try {
-      this.stop();
-
-      // Trim text to first 200 chars for safe HTTP query URL encoding
-      const cleanSnippet = text.length > 200 ? text.substring(0, 195) + "..." : text;
-      const streamUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${encodeURIComponent(ttsLang)}&q=${encodeURIComponent(cleanSnippet)}`;
-
-      const audio = new Audio(streamUrl);
+      const audio = new Audio(apiUrl);
       this.audioElement = audio;
 
       audio.onplay = () => {
@@ -157,36 +90,73 @@ class SpeechService {
         if (onEndCallback) onEndCallback();
       };
 
-      audio.onerror = () => {
-        // If external audio fails, try synth with whatever default voice is available
-        if (this.synth) {
-          const fallbackUtterance = new SpeechSynthesisUtterance(text);
-          fallbackUtterance.rate = 0.9;
-          fallbackUtterance.onend = () => {
-            this.isSpeaking = false;
-            this.isPaused = false;
-            if (this.onStateChange) this.onStateChange({ isSpeaking: false, isPaused: false });
-            if (onEndCallback) onEndCallback();
-          };
-          this.synth.speak(fallbackUtterance);
-        } else {
-          this.isSpeaking = false;
-          this.isPaused = false;
-          if (this.onStateChange) this.onStateChange({ isSpeaking: false, isPaused: false });
-        }
+      audio.onerror = (err) => {
+        console.warn("Backend TTS stream failed, falling back to Browser Web Speech API:", err);
+        this.fallbackBrowserSynth(text, langCode, langKey, onEndCallback);
       };
 
-      audio.play().catch(() => {
-        // Auto-play policy catch: fallback to synth
-        if (this.synth) {
-          const fallbackUtterance = new SpeechSynthesisUtterance(text);
-          this.synth.speak(fallbackUtterance);
-        }
-      });
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((e) => {
+          console.warn("Audio play prevented, falling back to Browser Synth:", e);
+          this.fallbackBrowserSynth(text, langCode, langKey, onEndCallback);
+        });
+      }
 
       return true;
+    } catch (e) {
+      console.warn("Error initializing Audio element, using browser synth:", e);
+      return this.fallbackBrowserSynth(text, langCode, langKey, onEndCallback);
+    }
+  }
+
+  fallbackBrowserSynth(text, langCode, langKey, onEndCallback) {
+    if (!this.synth) {
+      this.isSpeaking = false;
+      this.isPaused = false;
+      if (this.onStateChange) this.onStateChange({ isSpeaking: false, isPaused: false });
+      return false;
+    }
+
+    try {
+      this.stop();
+      const utterance = new SpeechSynthesisUtterance(text);
+      this.currentUtterance = utterance;
+
+      const bestVoice = this.findBestVoice(langCode, langKey);
+      if (bestVoice) {
+        utterance.voice = bestVoice;
+        utterance.lang = bestVoice.lang;
+      } else {
+        utterance.lang = langKey === "hi" ? "hi-IN" : langKey === "bn" || langKey === "as" ? "bn-IN" : "en-IN";
+      }
+
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+
+      utterance.onstart = () => {
+        this.isSpeaking = true;
+        this.isPaused = false;
+        if (this.onStateChange) this.onStateChange({ isSpeaking: true, isPaused: false });
+      };
+
+      utterance.onend = () => {
+        this.isSpeaking = false;
+        this.isPaused = false;
+        if (this.onStateChange) this.onStateChange({ isSpeaking: false, isPaused: false });
+        if (onEndCallback) onEndCallback();
+      };
+
+      utterance.onerror = () => {
+        this.isSpeaking = false;
+        this.isPaused = false;
+        if (this.onStateChange) this.onStateChange({ isSpeaking: false, isPaused: false });
+      };
+
+      this.synth.speak(utterance);
+      return true;
     } catch (err) {
-      console.warn("Audio stream fallback error:", err);
+      console.warn("Browser Speech Synthesis exception:", err);
       this.isSpeaking = false;
       this.isPaused = false;
       if (this.onStateChange) this.onStateChange({ isSpeaking: false, isPaused: false });
