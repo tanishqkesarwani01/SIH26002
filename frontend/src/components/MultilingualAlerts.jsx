@@ -48,7 +48,8 @@ export const MultilingualAlerts = () => {
     } else {
       speechService.speak(
         activeTranslation.alertBody,
-        activeTranslation.ttsVoiceHint || activeTranslation.langCode
+        activeTranslation.ttsVoiceHint || activeTranslation.langCode,
+        selectedLang
       );
     }
   };
